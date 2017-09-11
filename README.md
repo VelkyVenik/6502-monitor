@@ -1,2 +1,19 @@
-# 6502-monitor
-6502 Monitor in Assembler
+# 6502 Monitor
+
+[MOS 6502](https://en.wikipedia.org/wiki/MOS_Technology_6502) Monitor implemented in assembler for competiton [Jednodesková výzva](https://retrocip.cz/jednodeskova-vyzva-prvni-kolo/). Implemented and tested in [ASM80 IDE](http://www.asm80.com/)
+
+## Device description
+- CPU C6502
+- 4kB ROM (f000h-ffffh)
+- 1kB RAM (0000h-03ffh)
+- 6850 ACIA UART chip (control 0xa000, data 0xa001)
+
+## Useful Links
+- [Assembler Tutorial in Czech](https://strojak.cz/category/assembler/6502/)
+- [Another Tutorial](https://skilldrick.github.io/easy6502/)
+- [Wiki](https://en.wikipedia.org/wiki/MOS_Technology_6502)
+- [6502.org](http://6502.org)
+- [Instruction set](http://www.6502.org/tutorials/6502opcodes.html)
+- [Instruction set](http://www.obelisk.me.uk/6502/reference.html)
+- [The Woz Monitor](http://www.sbprojects.net/projects/apple1/wozmon.php)
+- [ASCII Table](http://www.asciitable.com)
