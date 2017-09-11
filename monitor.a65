@@ -1,0 +1,203 @@
+ADDRESS     =       $10 
+
+
+            .ORG    $F000 ; ROM
+            .ENT    $ ; ASM80.COM - emulator start
+            .ENGINE 6502 ; ASM80.COM - emulator definition
+
+RESET:              
+                    ; Stack
+            LDX     #$FF 
+            TXS     
+
+            JSR     init 
+            JSR     print_hello 
+            JSR     loop 
+
+
+INIT:               
+            JSR     serial_init 
+
+            RTS     
+
+
+LOOP:               
+            JSR     read_key 
+            JMP     loop 
+
+
+
+READ_KEY:           
+            JSR     primm ; print command promnt
+            DB      $0D,$0A,">> ",$00 
+
+READ_KEY_LOOP:      
+            JSR     serial_in ; read character
+            JSR     serial_out ; print it
+            JSR     primm 
+            DB      $0D,$0A,$00 ; with new line
+
+
+            CMP     #$44 ; D - Demo
+            BEQ     cmd_demo 
+
+            CMP     #$48 ; H - Help
+            BEQ     cmd_help 
+
+            CMP     #$43 ; C - Change Memory
+            BEQ     cmd_change 
+
+            CMP     #$47 ; G - Go
+            BEQ     cmd_run 
+            
+            CMP		#$08 ; BackSpace
+            BEQ		cmd_bs
+
+            JSR     cmd_unknown ; something else
+
+
+            RTS     
+
+
+CMD_DEMO:           
+            JSR     primm 
+            DB      ":)",$0D,$0A,$00 
+
+            RTS     
+
+CMD_HELP:           
+			JMP 	print_help
+     
+CMD_CHANGE:         
+			JMP     change_memory 
+
+
+CMD_RUN:            
+            JSR     primm 
+            DB      "Address: 0x",$00 
+            JSR     read_address 
+            JSR     print_nl 
+            
+            JMP     (address)
+
+CMD_BS:
+			JSR serial_out
+            RTS
+
+CMD_UNKNOWN:        
+            JSR     primm 
+            DB      "Unknown command, press H for help",$0D,$0A,$00 
+
+            RTS     
+
+
+
+PRINT_HELLO:        
+            JSR     primm 
+            DB      $0C,"Wellcome to the machine 6502, press H for help, ",$00 
+            JSR     primm 
+            DB      "(c) 2017 vaclav@slajs.xyz",$0D,$0A,$00 
+
+            RTS     
+
+PRINT_HELP:
+            JSR     primm 
+            DB      "Available commands:",$0D,$0A,$00 
+            JSR     primm 
+            DB      " D - Print Demo",$0D,$0A,$00 
+            JSR     primm 
+            DB      " C - Change Memory",$0D,$0A,$00
+            JSR		primm
+            DB		" G - Go To the Address",$0D,$0A,$00
+            
+            RTS
+
+CHANGE_MEMORY:      
+            JSR     primm 
+            DB      "Change Memory",$0D,$0A,$00 
+            JSR     primm 
+            DB      "Address: 0x",$00 
+            JSR     read_address 
+            JSR     print_nl 
+
+
+
+            JSR     primm 
+            DB      "Current Data: ",$00 
+
+                    ; Read byte from address and print it
+            LDX     #$00 
+            LDA     (address,X) 
+            STA     serial_data 
+            JSR     serial_out 
+            JSR     print_nl 
+
+            JSR     primm 
+            DB      "New Data: ",$00 
+            JSR     serial_in 
+                    ; Write byte to address
+            LDX     #$00 
+            LDA     serial_data 
+            STA     (address,X) 
+            JSR     serial_out 
+            JSR     print_nl 
+
+            RTS     
+
+
+
+            .INCLUDE serial.a65 
+
+                    ; -----------------------------------
+                    ; ------ Adresses Definitions -------
+                    ; -----------------------------------
+
+            .ORG    $FFFA 
+            DW      reset ; NMI
+            DW      reset 
+            DW      reset ; RESET
+            DW      reset 
+            DW      reset ; IRQ
+            DW      reset 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,185 @@
+                    ; -----------------------------------
+                    ; --- 6850 Serial Line Functions ----
+                    ; -----------------------------------
+
+ACIA        =       $A000 
+ACIACONTROL =       ACIA+0 
+ACIASTATUS  =       ACIA+0 
+ACIADATA    =       ACIA+1 
+
+SERIAL_DATA =       $9 
+
+@SERIAL_INIT:        
+                    ; ACIA init
+            LDA     #$15 
+            STA     ACIAControl 
+
+            RTS     
+
+                    ;.BLOCK
+
+                    ; ---- print data after JSR
+@PRIMM:             ; https://strojak.cz/6502-etevs-joha/
+            PHA     ; Ulo~ím A
+            TXA     
+            PHA     ; Ulo~ím X
+            TYA     
+            PHA     ; Ulo~ím Y
+            TSX     ; Ukazatel na zásobník si natu do X
+            LDA     $0104,X ; Ni~aí byte návratové adresy
+                    ; ($0100 je základní adresa zásobníku, X je tu aktuální
+                    ; ukazatel zásobníku, +4 proto, ~e ukazatel SP ukazuje na
+                    ; první volné místo, SP+1 je ulo~ený registr X,
+                    ; SP+2 je ulo~ený registr Y, SP+3 je ulo~ený registr A
+                    ; (na zaátku podprogramu jsme si je ukládali)
+                    ; SP+4 a SP+5 jsou ni~aí a vyaaí bajt návratové adresy,
+                    ; tedy první místo za instrukcí JSR
+                    ; 
+            STA     $00 ; Ulo~íme do ZP (tYeba na adresu 00)
+            LDA     $0105,X ; Analogicky vyaaí byte návratové adresy...
+            STA     $01 ; ... ukládáme do ZP na adresu 01
+            LDY     #$01 ; Nastavíme Y na poátení hodnotu. Mla by to být
+                    ; nula, ale proto~e víme, ~e návratová adresa je ve
+                    ; skutenosti o 1 ni~aí, ne~ adresa prvního bajtu za JSR,
+                    ; tak zaneme od jedniky.
+PRIM2:              
+            LDA     ($00),Y ; Nateme bajt. Adresa je "obsah bunk 00 a 01" + Y
+            BEQ     PRIM3 ; Naetli jsme nulu? Tak koníme!
+
+            STA     serial_data 
+            JSR     serial_out ; Nenulový znak ale vypíaeme
+            INY     ; posuneme se na dalaí adresu
+            BNE     PRIM2 ; a pokud jsme jeat nepYetoili poítadlo, tak
+                    ; pokraujeme v tisknutí znako.
+                    ; Kdy~ u~ je Y nulové, tak je naase skonit.
+
+PRIM3:              
+            TYA     ; V Y je "poet znako + 1" - pYesuneme do A
+            CLC     ; budeme sítat, je potYeba vynulovat C
+            ADC     $00 ; K A si pYiteme ni~aí bajt povodní návratové adresy
+            STA     $0104,X ; a "podvrhneme" ji do zásobníku
+            LDA     #$00 ; Vynulujeme A
+            ADC     $01 ; a pYiteme hodnotu vyaaího byte návratové adresy.
+                    ; Pokud pYi pYedchozím sítání doalo k pYenosu, tak se
+                    ; vyaaí bajt zvedne o 1, jinak zostane stejný
+            STA     $0105,X ; A opt vyaaí bajt návratové hodnoty analogicky
+                    ; ulo~íme na zásobník a budeme se tváYit, ~e to tak
+                    ; u~ bylo
+            PLA     ; PYeteme ulo~enou hodnotu
+            TAY     ; co patYí do registru Y
+            PLA     ; a úpln stejn tu, co
+            TAX     ; patYí do registru X
+            PLA     ; jeat povodní hodnotu A
+            RTS     ; a návrat!
+
+
+                    ; ---- Print new line
+@PRINT_NL:          
+            JSR     primm 
+            DB      $0D,$0A,$00 
+
+            RTS     
+
+
+
+                    ; ---- Send one byte to serial line
+@SERIAL_OUT:        ; from https://strojak.cz/6502-etevs-joha/
+                    ;PHA     ; Uschováme hodnotu, proto~e registr A potYebujeme
+SO_WAIT:            
+            LDA     ACIAStatus ; Je volno?
+            AND     #2 ; Bit 1 nám to Yekne
+            BEQ     SO_WAIT ; Není? Tak to zkusíme znovu, dokud nebude
+                    ;PLA     ; U~ je, tak~e si vrátíme zpt hodnotu z registru A
+            LDA     serial_data 
+            STA     ACIAData ; a poaleme ji do 6850
+            RTS     ; u~ není co na práci, tak se mo~eme vrátit
+
+                    ; Nastavíme vektory, které 6502 potYebuje, aby vdl, kam
+                    ; má po resetu systému skoit.
+
+                    ; ---- wait for and read one byte from serial line
+@SERIAL_IN:         
+            LDA     ACIAStatus 
+            AND     #1 
+            BEQ     serial_in ; Wait for serial input
+
+            LDA     ACIAData ; Read one byte
+            STA     serial_data 
+
+            RTS     
+
+                    ; ----- Read integer => A - byte, Y - integer
+@READ_INT:           
+            JSR     serial_in 
+            PHA     
+            SEC     ; minus 0x30
+            SBC     #$30 
+            TAY     ; move integer to Y
+            PLA     ; restore byte to A
+
+            RTS     
+
+                    ; ----- Read on he char => A
+@READ_HEX_CHAR:     
+            JSR     serial_in 
+            LDA     serial_data 
+
+                    ; hex character is valid - > 0x2f && < 0x3A || > 0x40 && < 0x47
+            CMP     #$2F ; < 0x2f
+            BMI     read_hex_char 
+
+            CMP     #$47 ; >= 0x46
+            BCS     read_hex_char 
+
+            CMP     #$3A ; < 0x3a
+            BCC     num 
+
+            CMP     #$41 ; >= 0x41
+            BCS     char 
+
+            JMP     read_hex_char 
+
+NUM:                
+            SEC     
+            SBC     #$30 
+            RTS     
+
+CHAR:               
+            SEC     
+            SBC     #$37 
+            RTS     
+
+
+@READ_BYTE:          
+            JSR     READ_HEX_CHAR ; read higher nibble
+            ASL     ; shift it
+            ASL     
+            ASL     
+            ASL     
+            STA     ADDRESS ; store it
+            JSR     serial_out ; and print back
+
+            JSR     READ_HEX_CHAR ; read lower nibble
+            ORA     ADDRESS ; add it
+            STA     ADDRESS ; store it
+            JSR     serial_out ; and print it
+
+            RTS     
+
+
+
+
+                    ; ---- Read Address - 4 bytes => ADDRESS + 1, ADDRESS
+@READ_ADDRESS:       
+            JSR     read_byte 
+            LDA     ADDRESS 
+            STA     ADDRESS+1 
+            JSR     read_byte 
+
+            RTS     
+
+
+
+
+
+
