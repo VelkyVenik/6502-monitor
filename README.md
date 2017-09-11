@@ -2,6 +2,9 @@
 
 [MOS 6502](https://en.wikipedia.org/wiki/MOS_Technology_6502) Monitor implemented in assembler for competiton [Jednodesková výzva](https://retrocip.cz/jednodeskova-vyzva-prvni-kolo/). Implemented and tested in [ASM80 IDE](http://www.asm80.com/)
 
+![screenshot](https://github.com/VelkyVenik/6502-monitor/raw/master/screen.png)
+
+
 # How To
 1. Go to [ASM80 IDE](http://www.asm80.com/)
 1. For file in (6502.emu, monitor.a65, serial.a65) { Create _New file_; Enter $file name; Copy&Paste file content }
