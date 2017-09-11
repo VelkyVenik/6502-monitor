@@ -4,10 +4,7 @@
 
 # How To
 1. Go to [ASM80 IDE](http://www.asm80.com/)
-1. For file in (6502.emu, monitor.a65, serial.a65) 
-* Create _New file_
-* Enter $file name
-* Copy&Paste file content
+1. For file in (6502.emu, monitor.a65, serial.a65) { Create _New file_; Enter $file name; Copy&Paste file content }
 1. Open monitor.a65 file
 1. Start _Simulator [F10]_
 
