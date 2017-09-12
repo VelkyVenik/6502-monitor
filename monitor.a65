@@ -1,6 +1,3 @@
-ADDRESS     =       $10 
-
-
             .ORG    $F000 ; ROM
             .ENT    $ ; ASM80.COM - emulator start
             .ENGINE 6502 ; ASM80.COM - emulator definition
@@ -12,11 +9,14 @@ RESET:
 
             JSR     init 
             JSR     print_hello 
-            JSR     loop 
+            JMP     loop 
 
 
 INIT:               
-            JSR     serial_init 
+            JSR     serial_init
+            LDA		#$0
+            STA		console_address
+            STA		console_address+1            
 
             RTS     
 
@@ -32,26 +32,28 @@ READ_KEY:
             DB      $0D,$0A,">> ",$00 
 
 READ_KEY_LOOP:      
-            JSR     serial_in ; read character
-            JSR     serial_out ; print it
+            JSR     read_char ; read character
+
             JSR     primm 
             DB      $0D,$0A,$00 ; with new line
-
-
-            CMP     #$44 ; D - Demo
-            BEQ     cmd_demo 
 
             CMP     #$48 ; H - Help
             BEQ     cmd_help 
 
+            CMP     #$41 ; A - Set Address
+            BEQ     cmd_address
+
             CMP     #$43 ; C - Change Memory
             BEQ     cmd_change 
 
+            CMP     #$4D ; M - Show Memory
+            BEQ     cmd_show 
+
             CMP     #$47 ; G - Go
-            BEQ     cmd_run 
-            
-            CMP		#$08 ; BackSpace
-            BEQ		cmd_bs
+            BEQ     cmd_go 
+
+            CMP     #$52 ; R - Registers
+            BEQ     cmd_req 
 
             JSR     cmd_unknown ; something else
 
@@ -59,30 +61,25 @@ READ_KEY_LOOP:
             RTS     
 
 
-CMD_DEMO:           
-            JSR     primm 
-            DB      ":)",$0D,$0A,$00 
-
-            RTS     
-
 CMD_HELP:           
-			JMP 	print_help
-     
+            JMP     print_help 
+
+CMD_ADDRESS:
+			JMP		set_address
+
 CMD_CHANGE:         
-			JMP     change_memory 
+            JMP     change_memory 
+
+CMD_SHOW:           
+            JMP     show_memory 
+
+CMD_GO:             
+            JMP     go_memory 
+
+CMD_REQ:            
+            JMP     print_regs 
 
 
-CMD_RUN:            
-            JSR     primm 
-            DB      "Address: 0x",$00 
-            JSR     read_address 
-            JSR     print_nl 
-            
-            JMP     (address)
-
-CMD_BS:
-			JSR serial_out
-            RTS
 
 CMD_UNKNOWN:        
             JSR     primm 
@@ -100,53 +97,108 @@ PRINT_HELLO:
 
             RTS     
 
-PRINT_HELP:
+PRINT_HELP:         
             JSR     primm 
             DB      "Available commands:",$0D,$0A,$00 
             JSR     primm 
-            DB      " D - Print Demo",$0D,$0A,$00 
+            DB      " A - Set Address",$0D,$0A,$00 
+            JSR     primm             
+            DB      " M - Show Memmory",$0D,$0A,$00 
             JSR     primm 
-            DB      " C - Change Memory",$0D,$0A,$00
-            JSR		primm
-            DB		" G - Go To the Address",$0D,$0A,$00
-            
-            RTS
+            DB      " C - Change Memory",$0D,$0A,$00 
+            JSR     primm 
+            DB      " G - Go To the Address",$0D,$0A,$00 
+            JSR     primm 
+            DB      " R - Show Registers",$0D,$0A,$00 
 
-CHANGE_MEMORY:      
+            RTS     
+
+PRINT_REGS:         
             JSR     primm 
-            DB      "Change Memory",$0D,$0A,$00 
+            DB      "A = ",$00 
+            STA     console_data 
+            JSR     print_byte 
+
             JSR     primm 
-            DB      "Address: 0x",$00 
-            JSR     read_address 
+            DB      ", X = ",$00 
+            STX     console_data 
+            JSR     print_byte 
+
+            JSR     primm 
+            DB      ", Y = ",$00 
+            STY     console_data 
+            JSR     print_byte 
+
             JSR     print_nl 
 
+            RTS     
 
+SHOW_MEMORY:        
+            JSR     get_address 
 
             JSR     primm 
-            DB      "Current Data: ",$00 
-
+            DB      "Data: 0x",$00 
                     ; Read byte from address and print it
             LDX     #$00 
-            LDA     (address,X) 
-            STA     serial_data 
-            JSR     serial_out 
+            LDA     (console_address,X) 
+            STA     console_data 
+            JSR     print_byte 
+            JSR     print_nl 
+
+            RTS     
+
+CHANGE_MEMORY:      
+            JSR     get_address 
+
+            JSR     primm 
+            DB      "Data: 0x",$00 
+                    ; Read byte from address and print it
+            LDX     #$00 
+            LDA     (console_address,X) 
+            STA     console_data 
+            JSR     print_byte 
             JSR     print_nl 
 
             JSR     primm 
-            DB      "New Data: ",$00 
-            JSR     serial_in 
+            DB      "New Data: 0x",$00 
+            JSR     read_byte 
+            LDA     console_data 
                     ; Write byte to address
             LDX     #$00 
-            LDA     serial_data 
-            STA     (address,X) 
-            JSR     serial_out 
+            STA     (console_address,X) 
             JSR     print_nl 
 
             RTS     
 
 
+GO_MEMORY:
+            JSR     get_address 
+            JMP     (console_address) 
+
+SET_ADDRESS:
+            JSR     primm 
+            DB      "Enter Address: 0x",$00 
+            JSR     read_address 
+            JSR     print_nl 
+            
+            RTS
+
+GET_ADDRESS:
+			; is one of address bytes non zero?
+			LDA		console_address
+            BNE		gt_done
+            
+            LDA		console_address+1
+            BNE		gt_done
+            
+			JSR 	set_address
+            
+GT_DONE:
+            RTS
+
 
             .INCLUDE serial.a65 
+            .INCLUDE console.a65 
 
                     ; -----------------------------------
                     ; ------ Adresses Definitions -------
@@ -159,45 +211,4 @@ CHANGE_MEMORY:
             DW      reset 
             DW      reset ; IRQ
             DW      reset 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
