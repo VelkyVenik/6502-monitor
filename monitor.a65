@@ -9,7 +9,10 @@ RESET:
 
             JSR     init 
             JSR     print_hello 
-            JMP     loop 
+
+LOOP:
+			JSR 	read_key
+            JMP 	loop
 
 
 INIT:               
@@ -19,12 +22,6 @@ INIT:
             STA		console_address+1            
 
             RTS     
-
-
-LOOP:               
-            JSR     read_key 
-            JMP     loop 
-
 
 
 READ_KEY:           
@@ -58,7 +55,7 @@ READ_KEY_LOOP:
             JSR     cmd_unknown ; something else
 
 
-            RTS     
+            RTS
 
 
 CMD_HELP:           
