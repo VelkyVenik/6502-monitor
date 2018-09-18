@@ -5,9 +5,9 @@ cpu C6502
 ;serial.control 0xDE
 
 serial simple
-serial.in 0x8000
-serial.out 0x8000
-serial.status 0x8001
+serial.in 0x83FC
+serial.out 0x83FC
+serial.status 0x83FD
 serial.status.available 0x08
 serial.status.ready 0x10
 serial.map 1
